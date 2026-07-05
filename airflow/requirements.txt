@@ -13,3 +13,6 @@ dbt-clickhouse
 # over gRPC to the spark-connect service; no JVM in this image.
 # Client and server versions must match.
 pyspark[connect]==3.5.3
+
+# Metrics emission (phase 5)
+statsd

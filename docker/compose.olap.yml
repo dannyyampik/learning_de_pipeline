@@ -17,6 +17,8 @@ services:
       - "19000:9000"   # native TCP (host 19000: MinIO already owns 9000)
     volumes:
       - chdata:/var/lib/clickhouse
+      # Prometheus metrics endpoint on :9363 (scraped in phase 5)
+      - ./clickhouse/prometheus.xml:/etc/clickhouse-server/config.d/prometheus.xml:ro
     healthcheck:
       test: ["CMD-SHELL", "clickhouse-client --user shopstream --password shopstream --query 'SELECT 1'"]
       interval: 5s

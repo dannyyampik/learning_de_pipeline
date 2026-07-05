@@ -17,7 +17,7 @@ tool rationale, and the full learning roadmap.
 | 2 | Streaming: Kafka, Avro events, Debezium CDC | ✅ | [runbook](docs/runbooks/phase-2.md) |
 | 3 | Lakehouse: Spark + Iceberg bronze, realtime KPIs | ✅ | [runbook](docs/runbooks/phase-3.md) |
 | 4 | Quality & reliability: silver layer, gates, maintenance | ✅ | [runbook](docs/runbooks/phase-4.md) |
-| 5 | Observability | — | |
+| 5 | Observability: Prometheus, Grafana, lag & freshness alerts | ✅ | [runbook](docs/runbooks/phase-5.md) |
 | 6 | Kubernetes | — | |
 
 ## Quickstart (phase 0)

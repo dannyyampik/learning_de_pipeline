@@ -1,0 +1,31 @@
+# What Prometheus scrapes, every 15s. Each job is one component of the
+# platform; open http://localhost:9090/targets to see them all (and which
+# are down — that page is your first stop in any incident).
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - alerts.yml
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs: [{ targets: ["localhost:9090"] }]
+
+  - job_name: kafka
+    static_configs: [{ targets: ["kafka-exporter:9308"] }]
+
+  - job_name: airflow
+    static_configs: [{ targets: ["statsd-exporter:9102"] }]
+
+  - job_name: postgres
+    static_configs: [{ targets: ["postgres-exporter:9187"] }]
+
+  # ClickHouse serves Prometheus metrics natively (config.d/prometheus.xml)
+  - job_name: clickhouse
+    static_configs: [{ targets: ["clickhouse:9363"] }]
+
+  # So does MinIO (MINIO_PROMETHEUS_AUTH_TYPE=public)
+  - job_name: minio
+    metrics_path: /minio/v2/metrics/cluster
+    static_configs: [{ targets: ["minio:9000"] }]

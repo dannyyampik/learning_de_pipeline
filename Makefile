@@ -7,18 +7,19 @@ OLAP   := -f docker/compose.olap.yml
 ORCH   := -f docker/compose.orchestration.yml
 STREAM := -f docker/compose.streaming.yml
 LAKE   := -f docker/compose.lakehouse.yml
+OBS    := -f docker/compose.observability.yml
 
 COMPOSE_CORE   := docker compose $(CORE)
 COMPOSE_BATCH  := docker compose $(CORE) $(OLAP) $(ORCH)
 COMPOSE_STREAM := docker compose $(CORE) $(STREAM)
 COMPOSE_LAKE   := docker compose $(CORE) $(STREAM) $(OLAP) $(LAKE)
 # The superset of everything defined so far (used by down/ps/logs/nuke)
-COMPOSE_ALL    := docker compose $(CORE) $(OLAP) $(ORCH) $(STREAM) $(LAKE)
+COMPOSE_ALL    := docker compose $(CORE) $(OLAP) $(ORCH) $(STREAM) $(LAKE) $(OBS)
 
 # Compose files share one project; don't warn about services from other files
 export COMPOSE_IGNORE_ORPHANS := 1
 
-.PHONY: help up-core up-batch up-streaming up-lakehouse up-all down ps logs \
+.PHONY: help up-core up-batch up-streaming up-lakehouse up-observability up-all down ps logs \
         logs-generator psql chsql demo demo-olap demo-rt trigger-daily \
         consume-events consume-cdc connect-status spark-sql nuke
 
@@ -36,6 +37,9 @@ up-streaming: ## Phase 2: core + Kafka + Schema Registry + Debezium + Kafka UI
 
 up-lakehouse: ## Phase 3: streaming stack + ClickHouse + Iceberg + Spark jobs
 	$(COMPOSE_LAKE) up -d --build
+
+up-observability: ## Phase 5: Prometheus + Grafana + exporters (add to any stack)
+	docker compose $(CORE) $(OBS) up -d
 
 up-all: ## Everything defined so far
 	$(COMPOSE_ALL) up -d --build
