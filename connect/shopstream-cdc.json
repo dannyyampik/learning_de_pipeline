@@ -1,0 +1,26 @@
+{
+  "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+  "database.hostname": "postgres",
+  "database.port": "5432",
+  "database.user": "shopstream",
+  "database.password": "shopstream",
+  "database.dbname": "shopstream",
+
+  "topic.prefix": "cdc.shopstream",
+  "table.include.list": "public.customers,public.products,public.inventory,public.orders,public.order_items,public.payments",
+
+  "plugin.name": "pgoutput",
+  "slot.name": "debezium",
+  "publication.autocreate.mode": "filtered",
+
+  "snapshot.mode": "initial",
+
+  "decimal.handling.mode": "string",
+
+  "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "key.converter.schemas.enable": "false",
+  "value.converter.schemas.enable": "false",
+
+  "tombstones.on.delete": "true"
+}

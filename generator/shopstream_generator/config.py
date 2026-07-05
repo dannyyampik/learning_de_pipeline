@@ -37,6 +37,16 @@ class Config:
     log_stats_every_seconds: int = 30
     random_seed: int = 0  # 0 = non-deterministic; set >0 for reproducible runs
 
+    # --- Clickstream (generator v2, phase 2+) ---
+    # Empty bootstrap = transactions-only mode (how phases 0-1 run it).
+    kafka_bootstrap: str = ""
+    schema_registry_url: str = "http://schema-registry:8081"
+    clickstream_topic: str = "shopstream.events.v1"
+    sessions_per_minute: float = 6.0
+    anon_session_pct: float = 0.35   # sessions browsing without an account
+    bad_event_pct: float = 0.005     # malformed (non-Avro) poison messages
+    late_event_pct: float = 0.02     # events stamped up to 5 min in the past
+
 
 def load_config() -> Config:
     """Build a Config, overriding defaults from UPPER_CASE env vars."""

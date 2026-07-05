@@ -1,0 +1,145 @@
+# Streaming backbone (phase 2): Kafka (KRaft), Schema Registry, Kafka
+# Connect with Debezium for CDC, and Kafka UI for visibility.
+# Started by `make up-streaming` (together with the core stack).
+#
+# This file also flips the generator into "v2" mode: the same container
+# starts emitting Avro clickstream events once KAFKA_BOOTSTRAP is set
+# (compose merges the environment maps of the two files).
+
+name: shopstream
+
+services:
+  kafka:
+    image: confluentinc/cp-kafka:7.7.1
+    container_name: shopstream-kafka
+    environment:
+      # Single-node KRaft: this broker is also the controller. No ZooKeeper.
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      # Two listeners: internal (containers -> kafka:29092) and host
+      # (your laptop -> localhost:9092). Understanding advertised
+      # listeners is rite-of-passage Kafka knowledge.
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      # Single broker => replication factor 1 everywhere (learning, not HA)
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafkadata:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:29092 > /dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
+
+  # One-shot: create the clickstream topic explicitly (3 partitions so we
+  # can see partitioning by key in action; auto-created CDC topics get 1).
+  kafka-init:
+    image: confluentinc/cp-kafka:7.7.1
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: >
+      bash -c "kafka-topics --bootstrap-server kafka:29092 --create
+      --if-not-exists --topic shopstream.events.v1 --partitions 3
+      --replication-factor 1 && echo 'topic ready: shopstream.events.v1'"
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.7.1
+    container_name: shopstream-schema-registry
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:29092
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    ports:
+      - "8081:8081"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8081/subjects > /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
+  connect:
+    # 2.7 is the last series dual-published to Docker Hub; Debezium 3.x
+    # lives only on quay.io (swap the ref if your network can reach it)
+    image: debezium/connect:2.7.3.Final
+    container_name: shopstream-connect
+    environment:
+      BOOTSTRAP_SERVERS: kafka:29092
+      GROUP_ID: shopstream-connect
+      CONFIG_STORAGE_TOPIC: _connect_configs
+      OFFSET_STORAGE_TOPIC: _connect_offsets
+      STATUS_STORAGE_TOPIC: _connect_status
+    ports:
+      - "8083:8083"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8083/connectors > /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  # One-shot: register (or update) the Debezium Postgres connector
+  connect-init:
+    image: curlimages/curl:latest
+    depends_on:
+      connect:
+        condition: service_healthy
+    volumes:
+      - ../connect:/connect:ro
+    entrypoint: >
+      sh -c "curl -sf -X PUT -H 'Content-Type: application/json'
+      --data @/connect/shopstream-cdc.json
+      http://connect:8083/connectors/shopstream-cdc/config
+      && echo 'CDC connector registered'"
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: shopstream-kafka-ui
+    environment:
+      KAFKA_CLUSTERS_0_NAME: shopstream
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry:8081
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: shopstream-connect
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://connect:8083
+    ports:
+      - "8085:8080"
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  # Generator v2: same service as compose.core.yml, plus Kafka settings.
+  generator:
+    environment:
+      KAFKA_BOOTSTRAP: kafka:29092
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      SESSIONS_PER_MINUTE: "6"
+      ANON_SESSION_PCT: "0.35"
+      BAD_EVENT_PCT: "0.005"
+      LATE_EVENT_PCT: "0.02"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+
+volumes:
+  kafkadata:

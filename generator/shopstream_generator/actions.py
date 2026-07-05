@@ -40,21 +40,31 @@ def create_customer(conn: Connection) -> int:
         return cur.fetchone()[0]
 
 
-def create_order(conn: Connection, cfg) -> int | None:
-    """A customer checks out a cart of 1-4 products.
+def create_order(
+    conn: Connection,
+    cfg,
+    customer_id: int | None = None,
+    product_ids: list[int] | None = None,
+) -> int | None:
+    """A customer checks out a cart of products.
+
+    Called two ways: directly by the tick loop (random customer, random
+    cart — "orders from channels we don't track events for"), and by a
+    browsing session that reached purchase (its customer, its cart).
 
     Prices are read from the products table *inside the same transaction*,
     and copied onto the order item (unit_price_at_purchase) — the classic
     "denormalize the price at time of sale" pattern.
     """
     with conn.transaction(), conn.cursor() as cur:
-        # ORDER BY random() is fine at learning scale; at production scale
-        # you'd sample differently (e.g. TABLESAMPLE).
-        cur.execute("SELECT customer_id FROM customers ORDER BY random() LIMIT 1")
-        row = cur.fetchone()
-        if row is None:
-            return None
-        customer_id = row[0]
+        if customer_id is None:
+            # ORDER BY random() is fine at learning scale; at production
+            # scale you'd sample differently (e.g. TABLESAMPLE).
+            cur.execute("SELECT customer_id FROM customers ORDER BY random() LIMIT 1")
+            row = cur.fetchone()
+            if row is None:
+                return None
+            customer_id = row[0]
 
         cur.execute(
             "INSERT INTO orders (customer_id) VALUES (%s) RETURNING order_id",
@@ -62,20 +72,31 @@ def create_order(conn: Connection, cfg) -> int | None:
         )
         order_id = cur.fetchone()[0]
 
-        # Pick 1-4 distinct products, skewed toward a "popular" subset by
-        # sorting on product_id modulo — cheap zipf-ish popularity.
-        n_items = random.choices([1, 2, 3, 4], weights=[55, 25, 13, 7])[0]
-        cur.execute(
-            """
-            INSERT INTO order_items (order_id, product_id, quantity, unit_price_at_purchase)
-            SELECT %s, p.product_id, 1 + floor(random() * 3)::int, p.unit_price
-            FROM products p
-            WHERE p.is_active
-            ORDER BY (p.product_id %% 7), random()
-            LIMIT %s
-            """,
-            (order_id, n_items),
-        )
+        if product_ids:
+            cur.execute(
+                """
+                INSERT INTO order_items (order_id, product_id, quantity, unit_price_at_purchase)
+                SELECT %s, p.product_id, 1, p.unit_price
+                FROM products p
+                WHERE p.product_id = ANY(%s)
+                """,
+                (order_id, product_ids),
+            )
+        else:
+            # Pick 1-4 distinct products, skewed toward a "popular" subset by
+            # sorting on product_id modulo — cheap zipf-ish popularity.
+            n_items = random.choices([1, 2, 3, 4], weights=[55, 25, 13, 7])[0]
+            cur.execute(
+                """
+                INSERT INTO order_items (order_id, product_id, quantity, unit_price_at_purchase)
+                SELECT %s, p.product_id, 1 + floor(random() * 3)::int, p.unit_price
+                FROM products p
+                WHERE p.is_active
+                ORDER BY (p.product_id %% 7), random()
+                LIMIT %s
+                """,
+                (order_id, n_items),
+            )
 
         # Decrement stock (floor at zero — the app oversells rather than errors;
         # noticing that in the data is a future lesson).
