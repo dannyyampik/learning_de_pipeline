@@ -8,3 +8,8 @@ psycopg[binary]
 clickhouse-connect
 dbt-core
 dbt-clickhouse
+
+# Lakehouse access (phase 4): thin Spark Connect client — DataFrame/SQL
+# over gRPC to the spark-connect service; no JVM in this image.
+# Client and server versions must match.
+pyspark[connect]==3.5.3

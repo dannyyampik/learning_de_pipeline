@@ -16,7 +16,7 @@ tool rationale, and the full learning roadmap.
 | 1 | Batch ELT: Airflow → lake → ClickHouse → dbt → Metabase | ✅ | [runbook](docs/runbooks/phase-1.md) |
 | 2 | Streaming: Kafka, Avro events, Debezium CDC | ✅ | [runbook](docs/runbooks/phase-2.md) |
 | 3 | Lakehouse: Spark + Iceberg bronze, realtime KPIs | ✅ | [runbook](docs/runbooks/phase-3.md) |
-| 4 | Data quality & reliability | — | |
+| 4 | Quality & reliability: silver layer, gates, maintenance | ✅ | [runbook](docs/runbooks/phase-4.md) |
 | 5 | Observability | — | |
 | 6 | Kubernetes | — | |
 

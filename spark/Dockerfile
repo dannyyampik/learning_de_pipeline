@@ -22,7 +22,8 @@ RUN set -e; cd /opt/spark/jars && \
     curl -fsSLO $MAVEN/org/apache/commons/commons-pool2/2.11.1/commons-pool2-2.11.1.jar && \
     curl -fsSLO $MAVEN/org/apache/spark/spark-avro_2.12/3.5.3/spark-avro_2.12-3.5.3.jar && \
     curl -fsSLO $MAVEN/org/apache/iceberg/iceberg-spark-runtime-3.5_2.12/1.6.1/iceberg-spark-runtime-3.5_2.12-1.6.1.jar && \
-    curl -fsSLO $MAVEN/org/apache/iceberg/iceberg-aws-bundle/1.6.1/iceberg-aws-bundle-1.6.1.jar
+    curl -fsSLO $MAVEN/org/apache/iceberg/iceberg-aws-bundle/1.6.1/iceberg-aws-bundle-1.6.1.jar && \
+    curl -fsSLO $MAVEN/org/apache/spark/spark-connect_2.12/3.5.3/spark-connect_2.12-3.5.3.jar
 
 # Python deps used by the jobs (Schema Registry REST + ClickHouse sink).
 # clickhouse-connect pinned <0.8: this Spark image ships Python 3.8.
