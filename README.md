@@ -13,7 +13,7 @@ tool rationale, and the full learning roadmap.
 | Phase | Topic | Status | Runbook |
 |---|---|---|---|
 | 0 | Foundations: OLTP app + traffic generator + MinIO | ✅ | [runbook](docs/runbooks/phase-0.md) |
-| 1 | Batch ELT: Airflow → lake → ClickHouse → dbt → Metabase | — | |
+| 1 | Batch ELT: Airflow → lake → ClickHouse → dbt → Metabase | ✅ | [runbook](docs/runbooks/phase-1.md) |
 | 2 | Streaming: Kafka, Avro events, Debezium CDC | — | |
 | 3 | Lakehouse: Spark + Iceberg medallion, realtime KPIs | — | |
 | 4 | Data quality & reliability | — | |

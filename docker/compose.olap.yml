@@ -1,0 +1,27 @@
+# OLAP warehouse: ClickHouse. Joined to the same project/network as the
+# core stack. Started by `make up-batch` (phase 1+).
+
+name: shopstream
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    container_name: shopstream-clickhouse
+    environment:
+      CLICKHOUSE_USER: shopstream
+      CLICKHOUSE_PASSWORD: shopstream
+      # Let the shopstream user create databases/users (dev convenience)
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ports:
+      - "8123:8123"    # HTTP interface (dbt, clickhouse-connect, Metabase)
+      - "19000:9000"   # native TCP (host 19000: MinIO already owns 9000)
+    volumes:
+      - chdata:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --user shopstream --password shopstream --query 'SELECT 1'"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  chdata:

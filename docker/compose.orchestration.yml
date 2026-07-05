@@ -1,0 +1,65 @@
+# Orchestration + BI: Airflow (standalone, LocalExecutor) and Metabase.
+# Started by `make up-batch` (phase 1+).
+#
+# Airflow runs in `standalone` mode: api-server + scheduler + dag-processor
+# + triggerer in one container. Fine for learning; production would split
+# these into separate services (see the phase-1 runbook).
+
+name: shopstream
+
+services:
+  airflow:
+    build: ../airflow
+    container_name: shopstream-airflow
+    command: standalone
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      # No login screen locally: everyone is admin (learning setup only!)
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "True"
+      # Endpoints the DAGs talk to
+      SHOPSTREAM_PG_DSN: postgresql://shopstream:shopstream@postgres:5432/shopstream
+      LAKE_S3_ENDPOINT: http://minio:9000
+      LAKE_S3_KEY: minioadmin
+      LAKE_S3_SECRET: minioadmin
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_USER: shopstream
+      CLICKHOUSE_PASSWORD: shopstream
+      # Keep dbt's scratch output out of the mounted repo directory
+      DBT_TARGET_PATH: /tmp/dbt/target
+      DBT_LOG_PATH: /tmp/dbt/logs
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../airflow/dags:/opt/airflow/dags
+      - ../dbt:/opt/dbt
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/api/v2/monitor/health | grep -q healthy"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    restart: unless-stopped
+
+  metabase:
+    image: metabase/metabase:latest
+    container_name: shopstream-metabase
+    environment:
+      MB_DB_FILE: /metabase-data/metabase.db
+    ports:
+      - "3000:3000"
+    volumes:
+      - mbdata:/metabase-data
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  mbdata:
