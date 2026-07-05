@@ -139,6 +139,12 @@ def run(cfg: Config) -> None:
                             product_ids=s.cart,
                         )
                         event["properties"]["order_id"] = str(order_id)
+                        with conn.cursor() as cur:
+                            cur.execute(
+                                "SELECT total_amount FROM orders WHERE order_id = %s",
+                                (order_id,),
+                            )
+                            event["properties"]["order_value"] = str(cur.fetchone()[0])
                         stats["orders"] += 1
                     producer.emit(event)
                     stats["events"] += 1

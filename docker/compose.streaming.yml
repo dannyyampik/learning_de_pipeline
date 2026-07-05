@@ -52,7 +52,11 @@ services:
     entrypoint: >
       bash -c "kafka-topics --bootstrap-server kafka:29092 --create
       --if-not-exists --topic shopstream.events.v1 --partitions 3
-      --replication-factor 1 && echo 'topic ready: shopstream.events.v1'"
+      --replication-factor 1 &&
+      kafka-topics --bootstrap-server kafka:29092 --create
+      --if-not-exists --topic shopstream.events.dlq --partitions 1
+      --replication-factor 1 &&
+      echo 'topics ready: shopstream.events.v1, shopstream.events.dlq'"
 
   schema-registry:
     image: confluentinc/cp-schema-registry:7.7.1

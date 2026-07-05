@@ -6,19 +6,21 @@ CORE   := -f docker/compose.core.yml
 OLAP   := -f docker/compose.olap.yml
 ORCH   := -f docker/compose.orchestration.yml
 STREAM := -f docker/compose.streaming.yml
+LAKE   := -f docker/compose.lakehouse.yml
 
 COMPOSE_CORE   := docker compose $(CORE)
 COMPOSE_BATCH  := docker compose $(CORE) $(OLAP) $(ORCH)
 COMPOSE_STREAM := docker compose $(CORE) $(STREAM)
+COMPOSE_LAKE   := docker compose $(CORE) $(STREAM) $(OLAP) $(LAKE)
 # The superset of everything defined so far (used by down/ps/logs/nuke)
-COMPOSE_ALL    := docker compose $(CORE) $(OLAP) $(ORCH) $(STREAM)
+COMPOSE_ALL    := docker compose $(CORE) $(OLAP) $(ORCH) $(STREAM) $(LAKE)
 
 # Compose files share one project; don't warn about services from other files
 export COMPOSE_IGNORE_ORPHANS := 1
 
-.PHONY: help up-core up-batch up-streaming up-all down ps logs logs-generator \
-        psql chsql demo demo-olap trigger-daily consume-events consume-cdc \
-        connect-status nuke
+.PHONY: help up-core up-batch up-streaming up-lakehouse up-all down ps logs \
+        logs-generator psql chsql demo demo-olap demo-rt trigger-daily \
+        consume-events consume-cdc connect-status spark-sql nuke
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -31,6 +33,9 @@ up-batch: ## Phase 1: core + ClickHouse + Airflow + Metabase
 
 up-streaming: ## Phase 2: core + Kafka + Schema Registry + Debezium + Kafka UI
 	$(COMPOSE_STREAM) up -d --build
+
+up-lakehouse: ## Phase 3: streaming stack + ClickHouse + Iceberg + Spark jobs
+	$(COMPOSE_LAKE) up -d --build
 
 up-all: ## Everything defined so far
 	$(COMPOSE_ALL) up -d --build
@@ -74,6 +79,13 @@ consume-cdc: ## Tail the orders CDC topic (JSON), Ctrl-C to stop
 
 connect-status: ## Show Debezium connector status
 	@curl -s http://localhost:8083/connectors/shopstream-cdc/status | python3 -m json.tool
+
+spark-sql: ## Interactive Spark SQL shell on the lakehouse (try: SELECT * FROM lake.bronze.events LIMIT 5;)
+	$(COMPOSE_ALL) exec spark-bronze /opt/spark/bin/spark-sql
+
+demo-rt: ## Realtime KPIs from ClickHouse (last 10 minutes)
+	@$(COMPOSE_ALL) exec -T clickhouse clickhouse-client --user shopstream --password shopstream \
+		--query "SELECT window_start, sum(events) events, max(sessions) sessions, sum(purchases) purchases, round(sum(revenue),2) revenue FROM rt.kpis_minute FINAL WHERE window_start > now() - INTERVAL 10 MINUTE GROUP BY window_start ORDER BY window_start DESC FORMAT PrettyCompact"
 
 nuke: ## Stop everything AND delete data volumes (fresh start)
 	$(COMPOSE_ALL) down -v
