@@ -1,0 +1,76 @@
+# Lakehouse (phase 3): Iceberg REST catalog + Spark streaming jobs.
+# Started by `make up-lakehouse` together with core + streaming + olap
+# (the KPI job writes to ClickHouse from compose.olap.yml).
+
+name: shopstream
+
+services:
+  iceberg-rest:
+    image: tabulario/iceberg-rest:1.6.0
+    container_name: shopstream-iceberg-rest
+    environment:
+      CATALOG_WAREHOUSE: s3://lake/lakehouse
+      CATALOG_IO__IMPL: org.apache.iceberg.aws.s3.S3FileIO
+      CATALOG_S3_ENDPOINT: http://minio:9000
+      CATALOG_S3_PATH__STYLE__ACCESS: "true"
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      AWS_REGION: us-east-1
+    ports:
+      - "8181:8181"
+    depends_on:
+      minio:
+        condition: service_healthy
+    healthcheck:
+      # No curl/wget in this image; bash's /dev/tcp checks the port instead
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/8181'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  spark-bronze:
+    build: ../spark
+    container_name: shopstream-spark-bronze
+    command: /opt/spark/bin/spark-submit /opt/jobs/bronze_ingest.py
+    environment: &spark-env
+      KAFKA_BOOTSTRAP: kafka:29092
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      AWS_REGION: us-east-1
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_USER: shopstream
+      CLICKHOUSE_PASSWORD: shopstream
+    volumes:
+      - ../jobs/streaming:/opt/jobs:ro
+      # Checkpoints on a local volume for simplicity; production puts them
+      # on shared storage (S3/HDFS) so any node can resume the stream.
+      - sparkchk:/checkpoints
+    depends_on:
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+      iceberg-rest:
+        condition: service_healthy
+    restart: unless-stopped
+
+  spark-kpis:
+    build: ../spark
+    container_name: shopstream-spark-kpis
+    command: /opt/spark/bin/spark-submit /opt/jobs/realtime_kpis.py
+    environment: *spark-env
+    volumes:
+      - ../jobs/streaming:/opt/jobs:ro
+      - sparkchk:/checkpoints
+    depends_on:
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  sparkchk:
