@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+dist/
+build/
+
+# Local env & secrets
+.env
+extra-ca.crt
+
+# IDE
+.idea/
+.vscode/
+
+# Data & logs
+*.log
+.data/
