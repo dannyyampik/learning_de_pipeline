@@ -1,0 +1,33 @@
+{
+  "type": "record",
+  "name": "ClickstreamEvent",
+  "namespace": "com.shopstream.events",
+  "doc": "One behavioral event from the ShopStream storefront. Keyed by session_id on the wire so a session's events stay ordered within a partition.",
+  "fields": [
+    {"name": "event_id", "type": "string", "doc": "UUID; downstream dedup key"},
+    {"name": "event_type", "type": {
+      "type": "enum",
+      "name": "EventType",
+      "symbols": ["page_view", "product_view", "search", "add_to_cart",
+                  "remove_from_cart", "begin_checkout", "purchase"]
+    }},
+    {"name": "event_ts", "type": {"type": "long", "logicalType": "timestamp-millis"},
+     "doc": "Event time (when it happened on the client) — may arrive late!"},
+    {"name": "session_id", "type": "string"},
+    {"name": "customer_id", "type": ["null", "long"], "default": null,
+     "doc": "null while browsing anonymously"},
+    {"name": "device", "type": {
+      "type": "record",
+      "name": "Device",
+      "fields": [
+        {"name": "type", "type": "string"},
+        {"name": "os", "type": "string"},
+        {"name": "browser", "type": "string"}
+      ]
+    }},
+    {"name": "page_url", "type": "string"},
+    {"name": "referrer", "type": ["null", "string"], "default": null},
+    {"name": "properties", "type": {"type": "map", "values": "string"}, "default": {},
+     "doc": "event_type-specific payload: product_id, search_query, order_id, cart_value, ..."}
+  ]
+}

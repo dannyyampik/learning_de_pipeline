@@ -48,7 +48,19 @@ def run(cfg: Config) -> None:
     per_tick = cfg.tick_seconds / 60.0  # rate/minute -> rate/tick
     per_tick_hourly = cfg.tick_seconds / 3600.0
 
-    stats = {"orders": 0, "customers": 0, "price_changes": 0, "gdpr_deletes": 0}
+    # Clickstream mode (v2) switches on when a Kafka bootstrap is configured
+    producer = None
+    sessions: list = []
+    product_ids: list[int] = []
+    if cfg.kafka_bootstrap:
+        from .events import ClickstreamProducer
+
+        producer = ClickstreamProducer(cfg)
+        log.info("clickstream enabled -> %s (topic %s)",
+                 cfg.kafka_bootstrap, cfg.clickstream_topic)
+
+    stats = {"orders": 0, "customers": 0, "price_changes": 0, "gdpr_deletes": 0,
+             "events": 0, "sessions": 0}
     last_stats_at = time.monotonic()
 
     running = True
@@ -89,16 +101,61 @@ def run(cfg: Config) -> None:
             if moved:
                 log.debug("lifecycle: %s", moved)
 
+            if producer:
+                from .sessions import Session
+
+                now = time.monotonic()
+                if not product_ids:  # cached once; catalog is static enough
+                    with conn.cursor() as cur:
+                        cur.execute("SELECT product_id FROM products WHERE is_active")
+                        product_ids = [r[0] for r in cur.fetchall()]
+
+                for _ in range(poisson(cfg.sessions_per_minute * per_tick)):
+                    customer_id = None
+                    if random.random() >= cfg.anon_session_pct:
+                        with conn.cursor() as cur:
+                            cur.execute(
+                                "SELECT customer_id FROM customers ORDER BY random() LIMIT 1"
+                            )
+                            row = cur.fetchone()
+                            customer_id = row[0] if row else None
+                    sessions.append(Session(customer_id, product_ids, now))
+                    stats["sessions"] += 1
+
+                for s in sessions:
+                    if not s.due(now):
+                        continue
+                    event = s.step(now)
+                    if event is None:
+                        continue
+                    if event["event_type"] == "purchase":
+                        # Anonymous shoppers create an account at checkout
+                        if s.customer_id is None:
+                            s.customer_id = actions.create_customer(conn)
+                            event["customer_id"] = s.customer_id
+                            stats["customers"] += 1
+                        order_id = actions.create_order(
+                            conn, cfg, customer_id=s.customer_id,
+                            product_ids=s.cart,
+                        )
+                        event["properties"]["order_id"] = str(order_id)
+                        stats["orders"] += 1
+                    producer.emit(event)
+                    stats["events"] += 1
+                sessions = [s for s in sessions if not s.done]
+
         except psycopg.OperationalError as exc:
             log.error("lost Postgres connection (%s), reconnecting", exc)
             conn = connect_with_retry(cfg)
 
         if time.monotonic() - last_stats_at >= cfg.log_stats_every_seconds:
             log.info(
-                "last %ds: %d orders, %d signups, %d price changes, %d GDPR deletes",
+                "last %ds: %d orders, %d signups, %d price changes, "
+                "%d GDPR deletes, %d sessions started, %d events emitted",
                 cfg.log_stats_every_seconds,
                 stats["orders"], stats["customers"],
                 stats["price_changes"], stats["gdpr_deletes"],
+                stats["sessions"], stats["events"],
             )
             stats = dict.fromkeys(stats, 0)
             last_stats_at = time.monotonic()
@@ -107,6 +164,8 @@ def run(cfg: Config) -> None:
         elapsed = time.monotonic() - tick_started
         time.sleep(max(cfg.tick_seconds - elapsed, 0))
 
+    if producer:
+        producer.flush()
     conn.close()
     log.info("generator stopped cleanly")
 
