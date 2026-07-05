@@ -26,6 +26,8 @@ services:
       CLICKHOUSE_HOST: clickhouse
       CLICKHOUSE_USER: shopstream
       CLICKHOUSE_PASSWORD: shopstream
+      # Lakehouse DAGs (phase 4) run Spark code remotely via Spark Connect
+      SPARK_REMOTE: sc://spark-connect:15002
       # Keep dbt's scratch output out of the mounted repo directory
       DBT_TARGET_PATH: /tmp/dbt/target
       DBT_LOG_PATH: /tmp/dbt/logs

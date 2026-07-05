@@ -68,6 +68,21 @@ demo-olap: ## Warehouse pulse check (raw loads + marts)
 trigger-daily: ## Trigger the daily_batch DAG right now
 	$(COMPOSE_ALL) exec airflow airflow dags trigger daily_batch
 
+trigger-silver: ## Trigger the hourly_silver DAG right now
+	$(COMPOSE_ALL) exec airflow airflow dags trigger hourly_silver
+
+trigger-maintenance: ## Trigger the weekly_maintenance DAG right now
+	$(COMPOSE_ALL) exec airflow airflow dags trigger weekly_maintenance
+
+demo-silver: ## Silver layer pulse check (row counts per table)
+	@$(COMPOSE_ALL) exec -T spark-connect /opt/spark/bin/spark-sql -e \
+		"SHOW TABLES IN lake.silver; \
+		 SELECT 'events' t, count(*) FROM lake.silver.events UNION ALL \
+		 SELECT 'orders_current', count(*) FROM lake.silver.orders_current UNION ALL \
+		 SELECT 'orders_history', count(*) FROM lake.silver.orders_history UNION ALL \
+		 SELECT 'customers_current', count(*) FROM lake.silver.customers_current UNION ALL \
+		 SELECT 'products_current', count(*) FROM lake.silver.products_current;" 2>/dev/null
+
 consume-events: ## Tail the Avro clickstream topic (deserialized), Ctrl-C to stop
 	$(COMPOSE_ALL) exec schema-registry kafka-avro-console-consumer \
 		--bootstrap-server kafka:29092 --topic shopstream.events.v1 \
