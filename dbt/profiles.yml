@@ -1,0 +1,13 @@
+# dbt connection profile. `schema` is the ClickHouse database dbt builds
+# models into (ClickHouse has no schema level below database).
+shopstream:
+  target: dev
+  outputs:
+    dev:
+      type: clickhouse
+      host: "{{ env_var('CLICKHOUSE_HOST', 'localhost') }}"
+      port: 8123
+      user: "{{ env_var('CLICKHOUSE_USER', 'shopstream') }}"
+      password: "{{ env_var('CLICKHOUSE_PASSWORD', 'shopstream') }}"
+      schema: analytics
+      secure: false

@@ -1,0 +1,33 @@
+version: 2
+
+models:
+  - name: fct_orders
+    description: "Order facts. Grain: one row per order item."
+    columns:
+      - name: order_item_id
+        tests: [unique, not_null]
+      - name: order_id
+        tests: [not_null]
+      - name: product_id
+        tests: [not_null]
+      - name: order_status
+        tests:
+          - accepted_values:
+              values: [pending, paid, shipped, delivered, cancelled]
+      - name: revenue
+        tests: [not_null]
+
+  - name: dim_product
+    columns:
+      - name: product_id
+        tests: [unique, not_null]
+
+  - name: dim_customer
+    columns:
+      - name: customer_id
+        tests: [unique, not_null]
+
+  - name: mart_daily_revenue
+    columns:
+      - name: order_date
+        tests: [unique, not_null]

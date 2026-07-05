@@ -1,0 +1,15 @@
+version: 2
+
+sources:
+  - name: raw_shopstream
+    description: >
+      Daily full snapshots of the ShopStream OLTP tables, loaded from the
+      lake by the daily_batch DAG. Partitioned by ds (load date).
+    database: raw
+    tables:
+      - name: customers
+      - name: products
+      - name: inventory
+      - name: orders
+      - name: order_items
+      - name: payments

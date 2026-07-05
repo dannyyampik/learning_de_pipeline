@@ -1,0 +1,14 @@
+name: shopstream
+version: "1.0.0"
+profile: shopstream
+
+model-paths: ["models"]
+
+models:
+  shopstream:
+    staging:
+      # Views: zero storage, always reflect the latest raw load
+      +materialized: view
+    marts:
+      # Tables: what BI queries hit
+      +materialized: table

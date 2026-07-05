@@ -1,0 +1,10 @@
+# Extraction: Postgres -> pandas -> Parquet on MinIO
+pandas
+pyarrow
+s3fs
+psycopg[binary]
+
+# Warehouse loading + transformation
+clickhouse-connect
+dbt-core
+dbt-clickhouse
