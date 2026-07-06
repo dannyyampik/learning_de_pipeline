@@ -18,7 +18,7 @@ tool rationale, and the full learning roadmap.
 | 3 | Lakehouse: Spark + Iceberg bronze, realtime KPIs | ✅ | [runbook](docs/runbooks/phase-3.md) |
 | 4 | Quality & reliability: silver layer, gates, maintenance | ✅ | [runbook](docs/runbooks/phase-4.md) |
 | 5 | Observability: Prometheus, Grafana, lag & freshness alerts | ✅ | [runbook](docs/runbooks/phase-5.md) |
-| 6 | Kubernetes | — | |
+| 6 | Kubernetes: k3d, manifests, Strimzi operator | ✅ | [runbook](docs/runbooks/phase-6.md) |
 
 ## Quickstart (phase 0)
 

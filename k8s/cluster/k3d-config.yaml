@@ -1,0 +1,20 @@
+# k3d cluster definition: a 3-node Kubernetes cluster (1 server, 2 agents)
+# running entirely in Docker containers. `make k8s-up` consumes this file.
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: shopstream
+servers: 1
+agents: 2
+ports:
+  # NodePort range exposure for reaching services from the host
+  - port: 30432:30432   # postgres
+    nodeFilters: [loadbalancer]
+  - port: 30900:30900   # minio api
+    nodeFilters: [loadbalancer]
+  - port: 30901:30901   # minio console
+    nodeFilters: [loadbalancer]
+options:
+  k3d:
+    wait: true
+    timeout: 300s
