@@ -1,0 +1,43 @@
+# Alert rules — the SLOs of the platform, as code.
+# View firing/pending state at http://localhost:9090/alerts. There's no
+# Alertmanager here (nowhere to page you), but these are real rules with
+# real `for:` debounce windows; wiring Alertmanager + Slack is the
+# production step and a good extra-credit exercise.
+groups:
+  - name: shopstream-pipeline
+    rules:
+      # Freshness: the storefront never sleeps, so a silent clickstream
+      # means a broken producer, broker, or network — not quiet users.
+      - alert: ClickstreamStalled
+        expr: sum(rate(kafka_topic_partition_current_offset{topic="shopstream.events.v1"}[5m])) == 0
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: No clickstream events produced for 5+ minutes
+
+      # Lag: consumers alive but falling behind — the "silent 4-hours-late
+      # streaming job" outage. NB: only sees consumers that commit offsets
+      # to Kafka; Spark Structured Streaming tracks offsets in its own
+      # checkpoints and is invisible here (see the phase-5 runbook).
+      - alert: ConsumerLagHigh
+        expr: sum by (consumergroup) (kafka_consumergroup_lag) > 5000
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "Consumer group {{ $labels.consumergroup }} lag > 5000"
+
+      # DLQ inflow: a trickle is expected (the generator produces ~0.5%
+      # poison on purpose); a flood means a producer regression.
+      - alert: DLQFlood
+        expr: sum(rate(kafka_topic_partition_current_offset{topic="shopstream.events.dlq"}[10m])) > 1
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: Dead-letter queue receiving > 1 msg/sec
+
+      # Orchestration: any failed Airflow task instance in the last 30 min.
+      - alert: AirflowTaskFailures
+        expr: increase(airflow_ti_failures[30m]) > 0
+        labels: { severity: warning }
+        annotations:
+          summary: Airflow task failures in the last 30 minutes

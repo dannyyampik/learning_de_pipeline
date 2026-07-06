@@ -1,0 +1,82 @@
+{
+  "title": "ShopStream Pipeline",
+  "uid": "shopstream-pipeline",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1, "type": "timeseries", "title": "Clickstream events / sec",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{
+        "expr": "sum(rate(kafka_topic_partition_current_offset{topic=\"shopstream.events.v1\"}[5m]))",
+        "legendFormat": "events/sec"
+      }]
+    },
+    {
+      "id": 2, "type": "timeseries", "title": "Consumer group lag (committing consumers only — see runbook)",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{
+        "expr": "sum by (consumergroup) (kafka_consumergroup_lag)",
+        "legendFormat": "{{consumergroup}}"
+      }]
+    },
+    {
+      "id": 3, "type": "stat", "title": "DLQ size (poison messages)",
+      "gridPos": { "x": 0, "y": 8, "w": 6, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{
+        "expr": "sum(kafka_topic_partition_current_offset{topic=\"shopstream.events.dlq\"})"
+      }]
+    },
+    {
+      "id": 4, "type": "stat", "title": "Airflow task failures (24h)",
+      "gridPos": { "x": 6, "y": 8, "w": 6, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" },
+        "thresholds": { "steps": [
+          { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } },
+        "overrides": [] },
+      "targets": [{ "expr": "sum(increase(airflow_ti_failures[24h])) or vector(0)" }]
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "Airflow tasks finishing / 5min",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "sum(increase(airflow_ti_successes[5m]))", "legendFormat": "success" },
+        { "expr": "sum(increase(airflow_ti_failures[5m]))", "legendFormat": "failed" }
+      ]
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "OLTP transactions / sec (Postgres)",
+      "gridPos": { "x": 0, "y": 14, "w": 8, "h": 7 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{
+        "expr": "rate(pg_stat_database_xact_commit{datname=\"shopstream\"}[5m])",
+        "legendFormat": "commits/sec"
+      }]
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "ClickHouse queries / sec",
+      "gridPos": { "x": 8, "y": 14, "w": 8, "h": 7 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{
+        "expr": "rate(ClickHouseProfileEvents_Query[5m])",
+        "legendFormat": "queries/sec"
+      }]
+    },
+    {
+      "id": 8, "type": "timeseries", "title": "Lake size (MinIO bucket bytes)",
+      "gridPos": { "x": 16, "y": 14, "w": 8, "h": 7 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "targets": [{
+        "expr": "sum(minio_cluster_usage_total_bytes)",
+        "legendFormat": "lake bytes"
+      }]
+    }
+  ]
+}

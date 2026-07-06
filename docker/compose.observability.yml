@@ -1,0 +1,64 @@
+# Observability (phase 5): Prometheus + Grafana + exporters.
+# Started by `make up-observability` on top of whatever else is running —
+# each exporter simply reports "down" in Prometheus if its target isn't up,
+# which is itself a lesson in how monitoring behaves during partial outages.
+
+name: shopstream
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: shopstream-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+    ports:
+      - "9090:9090"
+    volumes:
+      - ../observability/prometheus:/etc/prometheus:ro
+      - promdata:/prometheus
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: shopstream-grafana
+    environment:
+      # Local learning setup: no login wall
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    ports:
+      - "3001:3000"   # Metabase owns 3000
+    volumes:
+      - ../observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafanadata:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+  # Consumer lag + topic offsets — the single most important Kafka metric
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:v1.7.0
+    container_name: shopstream-kafka-exporter
+    command: ["--kafka.server=kafka:29092"]
+    ports:
+      - "9308:9308"
+    restart: unless-stopped
+
+  # Airflow emits StatsD (UDP); this converts to Prometheus metrics
+  statsd-exporter:
+    image: prom/statsd-exporter:v0.26.1
+    container_name: shopstream-statsd-exporter
+    ports:
+      - "9102:9102"
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: shopstream-postgres-exporter
+    environment:
+      DATA_SOURCE_NAME: postgresql://shopstream:shopstream@postgres:5432/shopstream?sslmode=disable
+    ports:
+      - "9187:9187"
+
+volumes:
+  promdata:
+  grafanadata:
