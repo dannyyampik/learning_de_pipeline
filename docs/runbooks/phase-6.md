@@ -72,9 +72,14 @@ Reaching things from the host: Postgres `localhost:30432`, MinIO console
    — read `status:`. Then change `spec.kafka.config` (add
    `log.retention.hours: 24`), apply, and watch Strimzi roll the broker.
    You changed a YAML field; the operator did the operational work.
-4. **Declare a topic.** Copy a `KafkaTopic` block, apply it, and find it
-   with `kafka-topics --list` from inside the broker pod. Infrastructure
-   as data, reconciled continuously.
+4. **Declare a topic.** Copy a `KafkaTopic` block in `k8s/kafka/kafka.yaml`,
+   rename it, `kubectl apply -f k8s/kafka/kafka.yaml`, then find it inside
+   the broker pod:
+   ```bash
+   kubectl -n shopstream exec shopstream-dual-role-0 -- \
+     bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
+   ```
+   Infrastructure as data, reconciled continuously.
 5. **Starve a pod.** Set the generator's memory limit to `64Mi`, apply,
    and watch it OOMKill-loop (`kubectl get pods -w`). Limits are real.
 

@@ -39,6 +39,8 @@ services:
     build: ../spark
     container_name: shopstream-spark-bronze
     command: /opt/spark/bin/spark-submit /opt/jobs/bronze_ingest.py
+    ports:
+      - "4040:4040"   # Spark UI: streaming query progress, stages, SQL plans
     environment: &spark-env
       KAFKA_BOOTSTRAP: kafka:29092
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
@@ -94,6 +96,8 @@ services:
     build: ../spark
     container_name: shopstream-spark-kpis
     command: /opt/spark/bin/spark-submit /opt/jobs/realtime_kpis.py
+    ports:
+      - "4041:4040"   # Spark UI for the KPI job (4040 taken by spark-bronze)
     environment: *spark-env
     volumes:
       - ../jobs/streaming:/opt/jobs:ro

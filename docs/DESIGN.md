@@ -1,7 +1,21 @@
 # ShopStream — A Learning Data Engineering Platform
 
-**Status:** Draft for review
+**Status:** Implemented — all 7 phases are built and merged; see the phase runbooks in [`runbooks/`](runbooks/).
 **Goal:** Build an end-to-end data platform around a fictional app, using the tools real data engineering teams use today, running (almost) entirely on Docker/Kubernetes so it costs ~$0.
+
+> **As-built notes** — where the implementation deviates from this document
+> (each deviation is explained in the relevant runbook):
+> 1. The bronze→silver batch job moved from phase 3 to phase 4 — it's about
+>    cleaning, which is that phase's theme (phase-3 runbook, "Scope note").
+> 2. Quality gates are plain SQL assertions rather than Great Expectations —
+>    same pattern, fully transparent; GX is an extra-credit swap (phase-4
+>    runbook, "Design note").
+> 3. Debezium is pinned to 2.7 (the last series dual-published to Docker
+>    Hub); 3.x lives only on quay.io.
+> 4. Phase 6 migrates the core stack + Kafka (via Strimzi) to Kubernetes;
+>    the remaining services are guided exercises in the phase-6 runbook.
+> 5. The Iceberg REST catalog is backed by Postgres, not its default
+>    embedded SQLite — the embedded store fails under concurrent commits.
 
 ---
 

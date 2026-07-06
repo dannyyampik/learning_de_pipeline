@@ -15,7 +15,7 @@ half of data engineering).
 
 ```bash
 make up-core        # build + start postgres, generator, minio
-make ps             # everything should be healthy (minio-init exits 0 — it's a one-shot job)
+make ps             # postgres & minio healthy; minio-init shows "Exited (0)" — it's a one-shot job
 make logs-generator # watch the app "do things"
 make demo           # row counts, order statuses, revenue — run it twice, compare
 make psql           # poke around yourself

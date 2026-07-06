@@ -62,8 +62,11 @@ make up-observability    # prometheus + grafana + exporters
    ```
    The `lag-demo` group consumed 50 messages, committed, and left — now
    watch its lag climb forever on the panel, and `ConsumerLagHigh` fire
-   after it passes 5000. Clean up with
-   `kafka-consumer-groups --bootstrap-server kafka:29092 --delete --group lag-demo`.
+   after it passes 5000. Clean up with:
+   ```bash
+   docker exec shopstream-kafka kafka-consumer-groups \
+     --bootstrap-server kafka:29092 --delete --group lag-demo
+   ```
 2. **Cause the freshness alert.** `docker stop shopstream-generator` —
    events/sec drops to zero and `ClickstreamStalled` goes pending → firing.
    This is the alert that catches "everything is up but no data is moving".

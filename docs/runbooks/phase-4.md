@@ -19,6 +19,7 @@ every lakehouse owner inherits.
 
 ```bash
 make up-all            # everything: core + streaming + olap + lakehouse + airflow
+                       # (the heaviest phase — give Docker ~12-16 GB)
 make trigger-silver    # or unpause hourly_silver in the UI at :00 past each hour
 make demo-silver       # silver row counts once the run is green
 make trigger-maintenance
@@ -61,7 +62,8 @@ offset/timestamp — is the natural exercise once row counts grow.
    then `make trigger-silver`: CDC picks up the update, silver rebuilds,
    and `quality_gate` fails naming the offending order_id. Fix the row,
    re-add the constraint, re-run — green. That loop is the whole point.
-2. **Compare bronze vs silver.** `SELECT count(*) FROM lake.bronze.events`
+2. **Compare bronze vs silver.** (This and the SQL below run in
+   `make spark-sql`.) `SELECT count(*) FROM lake.bronze.events`
    vs `lake.silver.events` — the difference is duplicates (idempotent
    producer keeps it small; crank generator restarts to grow it).
 3. **Watch an order's whole life.**
