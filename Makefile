@@ -108,3 +108,29 @@ demo-rt: ## Realtime KPIs from ClickHouse (last 10 minutes)
 
 nuke: ## Stop everything AND delete data volumes (fresh start)
 	$(COMPOSE_ALL) down -v
+
+# ---------------------------------------------------------------------------
+# Phase 6: Kubernetes (requires k3d, kubectl, helm — see runbook)
+# ---------------------------------------------------------------------------
+.PHONY: k8s-up k8s-core k8s-kafka k8s-status k8s-down
+
+k8s-up: ## Create the k3d cluster (1 server + 2 agents, in Docker)
+	k3d cluster create --config k8s/cluster/k3d-config.yaml
+
+k8s-core: ## Deploy Postgres + MinIO + generator to the cluster
+	docker build -t shopstream/generator:local generator
+	k3d image import -c shopstream shopstream/generator:local
+	kubectl kustomize --load-restrictor LoadRestrictionsNone k8s/core | kubectl apply -f -
+
+k8s-kafka: ## Install the Strimzi operator and declare the Kafka cluster + topics
+	helm repo add strimzi https://strimzi.io/charts/ 2>/dev/null || true
+	helm upgrade --install strimzi strimzi/strimzi-kafka-operator \
+		--namespace shopstream --create-namespace \
+		--set watchNamespaces={shopstream}
+	kubectl apply -f k8s/kafka/kafka.yaml
+
+k8s-status: ## Everything in the shopstream namespace
+	kubectl -n shopstream get pods,svc,pvc,jobs
+
+k8s-down: ## Delete the whole cluster (all state gone)
+	k3d cluster delete shopstream

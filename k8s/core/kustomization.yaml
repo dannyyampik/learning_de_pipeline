@@ -1,0 +1,32 @@
+# Kustomize ties the core stack together and generates the ConfigMap/Secret
+# from the same SQL files docker-compose mounts — one source of truth.
+# Applied via: kubectl kustomize --load-restrictor LoadRestrictionsNone k8s/core | kubectl apply -f -
+# (the load restrictor flag allows referencing ../../db/init outside this dir)
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: shopstream
+
+resources:
+  - namespace.yaml
+  - postgres.yaml
+  - minio.yaml
+  - generator.yaml
+
+configMapGenerator:
+  - name: db-init
+    files:
+      - ../../db/init/00_airflow.sql
+      - ../../db/init/00_catalog.sql
+      - ../../db/init/01_schema.sql
+      - ../../db/init/02_seed.sql
+
+secretGenerator:
+  - name: shopstream-secrets
+    literals:
+      - POSTGRES_USER=shopstream
+      - POSTGRES_PASSWORD=shopstream
+      - POSTGRES_DB=shopstream
+
+generatorOptions:
+  disableNameSuffixHash: true   # stable names so manifests can reference them

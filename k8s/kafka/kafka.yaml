@@ -1,0 +1,66 @@
+# Kafka via the Strimzi operator — the flagship "operator pattern" lesson.
+# You don't deploy Kafka pods; you declare a Kafka *resource* and the
+# operator (installed by `make k8s-kafka`) reconciles the real world to
+# match: pods, config, certificates, rolling restarts on change.
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaNodePool
+metadata:
+  name: dual-role
+  namespace: shopstream
+  labels:
+    strimzi.io/cluster: shopstream
+spec:
+  replicas: 1
+  roles: [controller, broker]   # single node doing both, like compose KRaft
+  storage:
+    type: persistent-claim
+    size: 2Gi
+    deleteClaim: true
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: shopstream
+  namespace: shopstream
+  annotations:
+    strimzi.io/node-pools: enabled
+    strimzi.io/kraft: enabled
+spec:
+  kafka:
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+    config:
+      offsets.topic.replication.factor: 1
+      transaction.state.log.replication.factor: 1
+      transaction.state.log.min.isr: 1
+      default.replication.factor: 1
+      min.insync.replicas: 1
+  entityOperator:
+    topicOperator: {}   # makes KafkaTopic resources work
+---
+# Topics as declarative resources, reconciled by the topic operator —
+# compare with compose, where a one-shot container ran kafka-topics.
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: shopstream.events.v1
+  namespace: shopstream
+  labels:
+    strimzi.io/cluster: shopstream
+spec:
+  partitions: 3
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: shopstream.events.dlq
+  namespace: shopstream
+  labels:
+    strimzi.io/cluster: shopstream
+spec:
+  partitions: 1
+  replicas: 1

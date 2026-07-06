@@ -1,0 +1,37 @@
+# The generator as a Deployment. Image is built locally and imported into
+# the cluster by `make k8s-core` (k3d image import) — no registry needed.
+#
+# NOTE deliberately left at replicas: 1. Scaling it to 2 "just works" and
+# doubles traffic — but each replica is an independent app instance, which
+# is realistic AND a trap: see the phase-6 runbook exercise.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: generator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: generator
+  template:
+    metadata:
+      labels:
+        app: generator
+    spec:
+      containers:
+        - name: generator
+          image: shopstream/generator:local
+          imagePullPolicy: Never    # imported into k3d, never pulled
+          env:
+            - name: DATABASE_URL
+              value: postgresql://shopstream:shopstream@postgres:5432/shopstream
+            - name: ORDERS_PER_MINUTE
+              value: "12"
+            - name: NEW_CUSTOMERS_PER_MINUTE
+              value: "2"
+            # Uncomment after `make k8s-kafka` to enable clickstream v2:
+            # - name: KAFKA_BOOTSTRAP
+            #   value: shopstream-kafka-bootstrap:9092
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { memory: 256Mi }
