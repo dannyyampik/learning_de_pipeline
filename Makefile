@@ -47,8 +47,8 @@ up-all: ## Everything defined so far
 down: ## Stop everything (keeps data volumes)
 	$(COMPOSE_ALL) down
 
-ps: ## Show container status
-	$(COMPOSE_ALL) ps
+ps: ## Show container status (-a so one-shot init jobs show their Exited (0))
+	$(COMPOSE_ALL) ps -a
 
 logs: ## Tail all logs
 	$(COMPOSE_ALL) logs -f --tail=50

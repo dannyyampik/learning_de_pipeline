@@ -27,7 +27,7 @@ make demo-rt         # live KPIs, refresh a few times
 |---|---|---|
 | Iceberg REST catalog | http://localhost:8181 | `/v1/config`, `/v1/namespaces/bronze/tables` |
 | Bronze data itself | http://localhost:9001 | MinIO console → `lake/lakehouse/…` — Parquet + JSON metadata |
-| Spark UIs | http://localhost:4040 (in-container) | per-job streaming metrics |
+| Spark UIs | http://localhost:4040 (bronze), http://localhost:4041 (KPIs) | streaming query progress, stages, SQL plans |
 | Live KPIs | `rt.kpis_minute` in ClickHouse | `make demo-rt` or Metabase on it |
 
 ## The moving parts
@@ -57,8 +57,12 @@ make demo-rt         # live KPIs, refresh a few times
    `data/` has small Parquet files (one per micro-batch; that's the
    "small files problem", fixed by compaction in phase 4), `metadata/`
    has the JSON/Avro manifests that make it a *table* and not just files.
-3. **Inspect the DLQ.** `docker compose ... exec kafka kafka-console-consumer
-   --bootstrap-server kafka:29092 --topic shopstream.events.dlq --from-beginning`
+3. **Inspect the DLQ.**
+   ```bash
+   docker exec shopstream-kafka kafka-console-consumer \
+     --bootstrap-server kafka:29092 --topic shopstream.events.dlq \
+     --from-beginning --timeout-ms 10000
+   ```
    — there are the poison pills, quarantined, not lost, not fatal.
 4. **See the watermark work.** Compare a minute's `events` in
    `rt.kpis_minute` against bronze for the same minute — bronze eventually

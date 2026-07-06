@@ -6,7 +6,9 @@ lake, ClickHouse ingests them straight from object storage, dbt turns raw
 snapshots into a star schema, and Metabase puts dashboards on top.
 
 **What you learn:** orchestration (DAGs, dynamic task mapping, XComs,
-idempotent re-runs), EL vs T, partitioned object storage layout, warehouse
+idempotent re-runs), EL vs T (moving data unchanged vs reshaping it —
+modern stacks load first, transform inside the warehouse: "ELT"),
+partitioned object storage layout, warehouse
 loading patterns (`s3()` table function, partition replacement), dbt
 (sources, staging vs marts, macros, tests), and the difference between an
 OLTP row store and an OLAP column store — by using both on the same data.

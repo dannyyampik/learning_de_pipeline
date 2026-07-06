@@ -8,6 +8,20 @@ ClickHouse, Metabase), all self-hosted on Docker for ~$0.
 **Start here:** [docs/DESIGN.md](docs/DESIGN.md) — architecture, schemas,
 tool rationale, and the full learning roadmap.
 
+## How to use this repo
+
+1. Read the design doc once (skim is fine — you'll come back to it).
+2. Do the phases **in order**; each has a runbook with a "Run it" section,
+   an explanation of what's happening, and hands-on exercises. The
+   exercises are the actual learning — don't skip them.
+3. Each phase has its own `make up-<phase>` target that starts only what
+   that phase needs, so you never debug more infrastructure than the
+   current lesson requires. `make down` between phases is fine — data
+   lives in Docker volumes and survives; `make nuke` wipes everything for
+   a fresh start.
+4. When something is unclear, read the source — every compose file, DAG,
+   job, and model is commented with *why*, not just *what*.
+
 ## Phases
 
 | Phase | Topic | Status | Runbook |
@@ -22,7 +36,9 @@ tool rationale, and the full learning roadmap.
 
 ## Quickstart (phase 0)
 
-Requirements: `docker` (with compose v2) and `make`.
+Requirements: `docker` (with compose v2) and `make`. RAM guide: phases 0–2
+run comfortably in ~8 GB of Docker memory; phases 3–5 (Spark + everything)
+want ~12–16 GB. Phase 6 additionally needs `k3d`, `kubectl`, and `helm`.
 
 ```bash
 make up-core   # start Postgres + the ShopStream traffic generator + MinIO

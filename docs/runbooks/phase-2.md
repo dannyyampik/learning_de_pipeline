@@ -61,9 +61,15 @@ WAL from there.
    `CUSTOMER_DELETES_PER_HOUR`), `cdc.shopstream.public.customers` gets a
    `op: d` event with `before` populated, followed by a null-value
    tombstone message.
-4. **Break the schema (safely).** Try registering an incompatible schema
-   version via the registry API and watch it get rejected — that's the
-   contract doing its job. `curl -X POST http://localhost:8081/compatibility/subjects/shopstream.events.v1-value/versions/latest ...`
+4. **Break the schema (safely).** Ask the registry whether an incompatible
+   schema (event_id changed from string to int) would be accepted:
+   ```bash
+   curl -s -X POST -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+     --data '{"schema":"{\"type\":\"record\",\"name\":\"ClickstreamEvent\",\"namespace\":\"com.shopstream.events\",\"fields\":[{\"name\":\"event_id\",\"type\":\"int\"}]}"}' \
+     http://localhost:8081/compatibility/subjects/shopstream.events.v1-value/versions/latest
+   ```
+   → `{"is_compatible":false}` — that's the contract doing its job. This is
+   exactly the check a CI pipeline would run before letting a producer deploy.
 5. **Peek at Postgres internals.** `make psql`:
    `SELECT * FROM pg_replication_slots;` — that's Debezium holding its
    place in the WAL. This is also why an idle Debezium can bloat a real
